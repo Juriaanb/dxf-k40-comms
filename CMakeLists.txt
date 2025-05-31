@@ -14,6 +14,7 @@ if(EXISTS ${LOCAL_WAYLAND_DIR}/wayland-install)
     set(WAYLAND_CLIENT_INCLUDE_DIRS ${LOCAL_WAYLAND_DIR}/wayland-install/include)
     set(WAYLAND_CLIENT_LIBRARIES ${LOCAL_WAYLAND_DIR}/wayland-install/lib64/libwayland-client.so)
     set(WAYLAND_EGL_LIBRARIES ${LOCAL_WAYLAND_DIR}/wayland-install/lib64/libwayland-egl.so)
+    set(WAYLAND_CURSOR_LIBRARIES ${LOCAL_WAYLAND_DIR}/wayland-install/lib64/libwayland-cursor.so)
     set(WAYLAND_PROTOCOLS_DIR ${LOCAL_WAYLAND_DIR}/wayland-protocols)
     
     # Set pkg-config path for local installation
@@ -29,6 +30,7 @@ else()
     message(STATUS "Trying system Wayland packages")
     pkg_check_modules(WAYLAND_CLIENT wayland-client)
     pkg_check_modules(WAYLAND_EGL wayland-egl)
+    pkg_check_modules(WAYLAND_CURSOR wayland-cursor)
     pkg_check_modules(EGL egl)
     pkg_check_modules(GLESV2 glesv2)
     pkg_check_modules(WAYLAND_PROTOCOLS wayland-protocols)
@@ -71,9 +73,23 @@ add_custom_command(
     DEPENDS ${XDG_SHELL_PROTOCOL}
 )
 
+# Generate XDG Decoration protocol
+set(XDG_DECORATION_PROTOCOL ${WAYLAND_PROTOCOLS_DIR}/unstable/xdg-decoration/xdg-decoration-unstable-v1.xml)
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/xdg-decoration-unstable-v1-client-protocol.h
+    COMMAND ${WAYLAND_SCANNER} client-header ${XDG_DECORATION_PROTOCOL} ${CMAKE_CURRENT_BINARY_DIR}/xdg-decoration-unstable-v1-client-protocol.h
+    DEPENDS ${XDG_DECORATION_PROTOCOL}
+)
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/xdg-decoration-unstable-v1-protocol.c
+    COMMAND ${WAYLAND_SCANNER} private-code ${XDG_DECORATION_PROTOCOL} ${CMAKE_CURRENT_BINARY_DIR}/xdg-decoration-unstable-v1-protocol.c
+    DEPENDS ${XDG_DECORATION_PROTOCOL}
+)
+
 # Create protocol library
 add_library(wayland-protocols STATIC
     ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell-protocol.c
+    ${CMAKE_CURRENT_BINARY_DIR}/xdg-decoration-unstable-v1-protocol.c
 )
 target_include_directories(wayland-protocols PUBLIC 
     ${CMAKE_CURRENT_BINARY_DIR}
@@ -107,6 +123,7 @@ add_executable(${PROJECT_NAME}
     ${SOURCES} 
     ${HEADERS}
     ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell-client-protocol.h
+    ${CMAKE_CURRENT_BINARY_DIR}/xdg-decoration-unstable-v1-client-protocol.h
 )
 
 # Make sure protocol headers are generated first
@@ -116,6 +133,7 @@ add_dependencies(${PROJECT_NAME} wayland-protocols)
 target_link_libraries(${PROJECT_NAME} 
     ${WAYLAND_CLIENT_LIBRARIES}
     ${WAYLAND_EGL_LIBRARIES}
+    ${WAYLAND_CURSOR_LIBRARIES}
     ${EGL_LIBRARIES}
     ${GLESV2_LIBRARIES}
     wayland-protocols
@@ -128,6 +146,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
     ${WAYLAND_CLIENT_INCLUDE_DIRS}
     ${WAYLAND_EGL_INCLUDE_DIRS}
+    ${WAYLAND_CURSOR_INCLUDE_DIRS}
     ${EGL_INCLUDE_DIRS}
     ${GLESV2_INCLUDE_DIRS}
 )
@@ -135,5 +154,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 # Compiler flags
 target_compile_options(${PROJECT_NAME} PRIVATE ${WAYLAND_CLIENT_CFLAGS_OTHER})
 target_compile_options(${PROJECT_NAME} PRIVATE ${WAYLAND_EGL_CFLAGS_OTHER})
+target_compile_options(${PROJECT_NAME} PRIVATE ${WAYLAND_CURSOR_CFLAGS_OTHER})
 target_compile_options(${PROJECT_NAME} PRIVATE ${EGL_CFLAGS_OTHER})
 target_compile_options(${PROJECT_NAME} PRIVATE ${GLESV2_CFLAGS_OTHER})

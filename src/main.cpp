@@ -22,6 +22,7 @@ int main_loop(const WindowData& data) {
         // Calculate scaled height for top bar (40px baseline for 1080p)
         float scale_factor = data.screen_height / 1080.0f;
         float top_bar_height = 40.0f * scale_factor;
+        float resize_border_width = 8.0f; // 8px resize border
         
         // Create layout: top row "box box" (title + close), bottom row "box" (main content)
         main_layout = create_layout(0, 0, data.screen_width, data.screen_height);
@@ -68,8 +69,93 @@ int main_loop(const WindowData& data) {
         layout_manager->handle_window_resize(data.screen_width, data.screen_height);
     }
     
-    // Handle touch events
-    if (data.mouse_pressed || data.mouse_held || data.mouse_released) {
+    // Check for resize zones
+    static bool in_resize_zone = false;
+    static std::string resize_direction = "";
+    
+    float resize_border = 15.0f; // Thicker resize area (extends into content)
+    bool mouse_in_resize = false;
+    std::string current_resize_dir = "";
+    
+    // Check edges for resize zones (centered on window border, extending inward)
+    if (data.mouse_x <= resize_border) {
+        if (data.mouse_y <= resize_border) {
+            current_resize_dir = "nw"; // Northwest
+        } else if (data.mouse_y >= data.screen_height - resize_border) {
+            current_resize_dir = "sw"; // Southwest  
+        } else {
+            current_resize_dir = "w"; // West
+        }
+        mouse_in_resize = true;
+    } else if (data.mouse_x >= data.screen_width - resize_border) {
+        if (data.mouse_y <= resize_border) {
+            current_resize_dir = "ne"; // Northeast
+        } else if (data.mouse_y >= data.screen_height - resize_border) {
+            current_resize_dir = "se"; // Southeast
+        } else {
+            current_resize_dir = "e"; // East
+        }
+        mouse_in_resize = true;
+    } else if (data.mouse_y <= resize_border) {
+        current_resize_dir = "n"; // North
+        mouse_in_resize = true;
+    } else if (data.mouse_y >= data.screen_height - resize_border) {
+        current_resize_dir = "s"; // South
+        mouse_in_resize = true;
+    }
+    
+    // Update resize state and cursor
+    if (mouse_in_resize && current_resize_dir != resize_direction) {
+        resize_direction = current_resize_dir;
+        std::cout << "Entering resize zone: " << resize_direction << std::endl;
+        
+        // Set appropriate resize cursor
+        BaseWindow* window = BaseWindow::get_current_instance();
+        if (window) {
+            if (resize_direction == "nw" || resize_direction == "se") {
+                window->set_cursor("nw-resize");
+            } else if (resize_direction == "ne" || resize_direction == "sw") {
+                window->set_cursor("ne-resize");
+            } else if (resize_direction == "n" || resize_direction == "s") {
+                window->set_cursor("ns-resize");
+            } else if (resize_direction == "e" || resize_direction == "w") {
+                window->set_cursor("ew-resize");
+            }
+        }
+    } else if (!mouse_in_resize && in_resize_zone) {
+        std::cout << "Leaving resize zone" << std::endl;
+        resize_direction = "";
+        
+        // Reset to default cursor
+        BaseWindow* window = BaseWindow::get_current_instance();
+        if (window) {
+            window->set_cursor("default");
+        }
+    }
+    in_resize_zone = mouse_in_resize;
+    
+    // Handle resize interaction
+    static bool resize_started = false;
+    static bool was_held = false;
+    
+    // Check for button press transition (not held -> held) in resize zone
+    bool button_just_pressed = data.mouse_held && !was_held;
+    if (button_just_pressed && !resize_direction.empty() && !resize_started) {
+        BaseWindow* window = BaseWindow::get_current_instance();
+        if (window) {
+            std::cout << "STARTING RESIZE: " << resize_direction << std::endl;
+            window->start_interactive_resize(resize_direction);
+            resize_started = true;
+        }
+    }
+    
+    if (data.mouse_released) {
+        resize_started = false;
+    }
+    was_held = data.mouse_held;
+    
+    // Handle touch events (only if not in resize zone)
+    if (!in_resize_zone && (data.mouse_pressed || data.mouse_held || data.mouse_released)) {
         std::cout << "Mouse event: " << data.mouse_x << "," << data.mouse_y 
                   << " pressed=" << data.mouse_pressed << " held=" << data.mouse_held 
                   << " released=" << data.mouse_released << std::endl;

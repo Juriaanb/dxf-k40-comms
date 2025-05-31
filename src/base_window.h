@@ -3,9 +3,11 @@
 #include "window_data.h"
 #include <wayland-client.h>
 #include <wayland-egl.h>
+#include <wayland-cursor.h>
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
 #include "xdg-shell-client-protocol.h"
+#include "xdg-decoration-unstable-v1-client-protocol.h"
 #include <string>
 
 class BaseWindow {
@@ -22,10 +24,20 @@ private:
     struct xdg_surface* xdg_surface;
     struct xdg_toplevel* xdg_toplevel;
     
+    // Server-side decorations
+    struct zxdg_decoration_manager_v1* decoration_manager;
+    struct zxdg_toplevel_decoration_v1* toplevel_decoration;
+    
     // Input devices
     struct wl_seat* seat;
     struct wl_pointer* pointer;
     struct wl_keyboard* keyboard;
+    
+    // Cursor support
+    struct wl_shm* shm;
+    struct wl_cursor_theme* cursor_theme;
+    struct wl_cursor* current_cursor;
+    struct wl_surface* cursor_surface;
     
     // EGL context
     EGLDisplay egl_display;
@@ -44,6 +56,9 @@ private:
     
     // Static pointer for Wayland callbacks to access window data
     static BaseWindow* current_instance;
+    
+    // For interactive resize
+    uint32_t last_button_serial;
     
     // Wayland initialization
     bool init_wayland();
@@ -89,4 +104,8 @@ public:
     
     void process_events();
     void swap_buffers();
+    void set_cursor(const std::string& cursor_name);
+    void start_interactive_resize(const std::string& direction);
+    
+    static BaseWindow* get_current_instance() { return current_instance; }
 };

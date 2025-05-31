@@ -37,10 +37,12 @@ BaseWindow* BaseWindow::current_instance = nullptr;
 BaseWindow::BaseWindow(int w, int h, const std::string& t) 
     : display(nullptr), registry(nullptr), compositor(nullptr), surface(nullptr),
       egl_window(nullptr), xdg_wm_base(nullptr), xdg_surface(nullptr), 
-      xdg_toplevel(nullptr), seat(nullptr), pointer(nullptr), keyboard(nullptr),
+      xdg_toplevel(nullptr), decoration_manager(nullptr), toplevel_decoration(nullptr),
+      seat(nullptr), pointer(nullptr), keyboard(nullptr),
+      shm(nullptr), cursor_theme(nullptr), current_cursor(nullptr), cursor_surface(nullptr),
       egl_display(EGL_NO_DISPLAY), egl_context(EGL_NO_CONTEXT), 
       egl_surface(EGL_NO_SURFACE), width(w), height(h), title(t),
-      configured(false), running(true), main_callback(nullptr) {
+      configured(false), running(true), main_callback(nullptr), last_button_serial(0) {
     
     window_data.screen_width = static_cast<float>(width);
     window_data.screen_height = static_cast<float>(height);
@@ -70,6 +72,15 @@ bool BaseWindow::initialize() {
     glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    // Initialize cursor theme if shm is available
+    if (shm) {
+        cursor_theme = wl_cursor_theme_load(nullptr, 24, shm);
+        if (cursor_theme) {
+            cursor_surface = wl_compositor_create_surface(compositor);
+            std::cout << "Cursor theme initialized" << std::endl;
+        }
+    }
     
     std::cout << "Base window initialized: " << width << "x" << height << std::endl;
     std::cout << "OpenGL ES " << glGetString(GL_VERSION) << std::endl;
@@ -182,6 +193,17 @@ bool BaseWindow::init_wayland() {
     
     xdg_toplevel_set_title(xdg_toplevel, title.c_str());
     
+    // Request server-side decorations if available
+    if (decoration_manager) {
+        std::cout << "Requesting server-side decorations..." << std::endl;
+        toplevel_decoration = zxdg_decoration_manager_v1_get_toplevel_decoration(
+            decoration_manager, xdg_toplevel);
+        zxdg_toplevel_decoration_v1_set_mode(toplevel_decoration, 
+            ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+    } else {
+        std::cout << "No decoration manager available - window will have no title bar" << std::endl;
+    }
+    
     wl_surface_commit(surface);
     
     return true;
@@ -272,6 +294,26 @@ void BaseWindow::cleanup() {
         wl_egl_window_destroy(egl_window);
     }
     
+    if (cursor_surface) {
+        wl_surface_destroy(cursor_surface);
+    }
+    
+    if (cursor_theme) {
+        wl_cursor_theme_destroy(cursor_theme);
+    }
+    
+    if (shm) {
+        wl_shm_destroy(shm);
+    }
+    
+    if (toplevel_decoration) {
+        zxdg_toplevel_decoration_v1_destroy(toplevel_decoration);
+    }
+    
+    if (decoration_manager) {
+        zxdg_decoration_manager_v1_destroy(decoration_manager);
+    }
+    
     if (pointer) {
         wl_pointer_destroy(pointer);
     }
@@ -321,6 +363,12 @@ void BaseWindow::registry_global(void* data, struct wl_registry* registry,
         window->xdg_wm_base = static_cast<struct xdg_wm_base*>(
             wl_registry_bind(registry, name, &xdg_wm_base_interface, 1));
         xdg_wm_base_add_listener(window->xdg_wm_base, &xdg_wm_base_listener, window);
+    } else if (strcmp(interface, zxdg_decoration_manager_v1_interface.name) == 0) {
+        window->decoration_manager = static_cast<struct zxdg_decoration_manager_v1*>(
+            wl_registry_bind(registry, name, &zxdg_decoration_manager_v1_interface, 1));
+    } else if (strcmp(interface, wl_shm_interface.name) == 0) {
+        window->shm = static_cast<struct wl_shm*>(
+            wl_registry_bind(registry, name, &wl_shm_interface, 1));
     } else if (strcmp(interface, wl_seat_interface.name) == 0) {
         window->seat = static_cast<struct wl_seat*>(
             wl_registry_bind(registry, name, &wl_seat_interface, 7));
@@ -391,6 +439,9 @@ void BaseWindow::pointer_button(void* data, struct wl_pointer* pointer, uint32_t
                                uint32_t time, uint32_t button, uint32_t state) {
     BaseWindow* window = static_cast<BaseWindow*>(data);
     
+    // Store the serial for interactive operations
+    window->last_button_serial = serial;
+    
     if (state == 1) { // Button pressed
         window->window_data.mouse_pressed = true;
         window->window_data.mouse_held = true;
@@ -409,4 +460,55 @@ void BaseWindow::pointer_axis(void* data, struct wl_pointer* pointer, uint32_t t
 
 void BaseWindow::pointer_frame(void* data, struct wl_pointer* pointer) {
     // Handle pointer frame events (batching)
+}
+
+void BaseWindow::set_cursor(const std::string& cursor_name) {
+    if (!cursor_theme || !cursor_surface || !pointer) {
+        return;
+    }
+    
+    struct wl_cursor* cursor = wl_cursor_theme_get_cursor(cursor_theme, cursor_name.c_str());
+    if (!cursor) {
+        cursor = wl_cursor_theme_get_cursor(cursor_theme, "default");
+    }
+    
+    if (cursor && cursor->image_count > 0) {
+        struct wl_cursor_image* image = cursor->images[0];
+        wl_surface_attach(cursor_surface, wl_cursor_image_get_buffer(image), 0, 0);
+        wl_surface_damage(cursor_surface, 0, 0, image->width, image->height);
+        wl_surface_commit(cursor_surface);
+        wl_pointer_set_cursor(pointer, 0, cursor_surface, image->hotspot_x, image->hotspot_y);
+        current_cursor = cursor;
+    }
+}
+
+void BaseWindow::start_interactive_resize(const std::string& direction) {
+    if (!xdg_toplevel || !seat) {
+        return;
+    }
+    
+    uint32_t edges = 0;
+    
+    if (direction == "nw") {
+        edges = XDG_TOPLEVEL_RESIZE_EDGE_TOP | XDG_TOPLEVEL_RESIZE_EDGE_LEFT;
+    } else if (direction == "n") {
+        edges = XDG_TOPLEVEL_RESIZE_EDGE_TOP;
+    } else if (direction == "ne") {
+        edges = XDG_TOPLEVEL_RESIZE_EDGE_TOP | XDG_TOPLEVEL_RESIZE_EDGE_RIGHT;
+    } else if (direction == "e") {
+        edges = XDG_TOPLEVEL_RESIZE_EDGE_RIGHT;
+    } else if (direction == "se") {
+        edges = XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM | XDG_TOPLEVEL_RESIZE_EDGE_RIGHT;
+    } else if (direction == "s") {
+        edges = XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM;
+    } else if (direction == "sw") {
+        edges = XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM | XDG_TOPLEVEL_RESIZE_EDGE_LEFT;
+    } else if (direction == "w") {
+        edges = XDG_TOPLEVEL_RESIZE_EDGE_LEFT;
+    }
+    
+    if (edges != 0) {
+        xdg_toplevel_resize(xdg_toplevel, seat, last_button_serial, edges);
+        std::cout << "Starting interactive resize: " << direction << " with serial: " << last_button_serial << std::endl;
+    }
 }
