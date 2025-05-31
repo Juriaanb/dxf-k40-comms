@@ -19,34 +19,40 @@ int main_loop(const WindowData& data) {
         std::cout << "Initializing main loop..." << std::endl;
         layout_manager = new LayoutManager(data.screen_width, data.screen_height);
         
-        // Create test layout: "box box box"
+        // Calculate scaled height for top bar (40px baseline for 1080p)
+        float scale_factor = data.screen_height / 1080.0f;
+        float top_bar_height = 40.0f * scale_factor;
+        
+        // Create layout: top row "box box" (title + close), bottom row "box" (main content)
         main_layout = create_layout(0, 0, data.screen_width, data.screen_height);
-        main_layout->add_row("box box box");
+        main_layout->add_row("titlebar closebtn");
+        main_layout->add_row("maincontent");
+        main_layout->set_custom_row_height(0, top_bar_height);
         main_layout->recalculate();
         
-        // Create test boxes with different colors
-        auto box1_area = main_layout->get_element_area(0, 0);
-        auto box2_area = main_layout->get_element_area(0, 1);
-        auto box3_area = main_layout->get_element_area(0, 2);
+        // Get areas for each element
+        auto titlebar_area = main_layout->get_element_area(0, 0);
+        auto closebtn_area = main_layout->get_element_area(0, 1);
+        auto maincontent_area = main_layout->get_element_area(1, 0);
         
-        std::cout << "Box 1 area: " << box1_area.x << "," << box1_area.y << " " << box1_area.width << "x" << box1_area.height << std::endl;
-        std::cout << "Box 2 area: " << box2_area.x << "," << box2_area.y << " " << box2_area.width << "x" << box2_area.height << std::endl;
-        std::cout << "Box 3 area: " << box3_area.x << "," << box3_area.y << " " << box3_area.width << "x" << box3_area.height << std::endl;
+        std::cout << "Title bar area: " << titlebar_area.x << "," << titlebar_area.y << " " << titlebar_area.width << "x" << titlebar_area.height << std::endl;
+        std::cout << "Close button area: " << closebtn_area.x << "," << closebtn_area.y << " " << closebtn_area.width << "x" << closebtn_area.height << std::endl;
+        std::cout << "Main content area: " << maincontent_area.x << "," << maincontent_area.y << " " << maincontent_area.width << "x" << maincontent_area.height << std::endl;
         
-        test_box1 = create_box(box1_area.x, box1_area.y, box1_area.width, box1_area.height,
-                              [](const TouchData&, const BoxArea&) { std::cout << "Box 1 clicked!" << std::endl; },
-                              "Box 1", "center", true,
+        test_box1 = create_box(titlebar_area.x, titlebar_area.y, titlebar_area.width, titlebar_area.height,
+                              [](const TouchData&, const BoxArea&) { std::cout << "Title bar clicked!" << std::endl; },
+                              "STEP Viewer", "center", true,
+                              Color(0.3f, 0.3f, 0.3f), Color(1.0f, 1.0f, 1.0f));
+        
+        test_box2 = create_box(closebtn_area.x, closebtn_area.y, closebtn_area.width, closebtn_area.height,
+                              [](const TouchData&, const BoxArea&) { std::cout << "Close button clicked!" << std::endl; },
+                              "X", "center", true,
                               Color(0.8f, 0.2f, 0.2f), Color(1.0f, 1.0f, 1.0f));
         
-        test_box2 = create_box(box2_area.x, box2_area.y, box2_area.width, box2_area.height,
-                              [](const TouchData&, const BoxArea&) { std::cout << "Box 2 clicked!" << std::endl; },
-                              "Box 2", "center", true,
-                              Color(0.2f, 0.8f, 0.2f), Color(1.0f, 1.0f, 1.0f));
-        
-        test_box3 = create_box(box3_area.x, box3_area.y, box3_area.width, box3_area.height,
-                              [](const TouchData&, const BoxArea&) { std::cout << "Box 3 clicked!" << std::endl; },
-                              "Box 3", "center", true,
-                              Color(0.2f, 0.2f, 0.8f), Color(1.0f, 1.0f, 1.0f));
+        test_box3 = create_box(maincontent_area.x, maincontent_area.y, maincontent_area.width, maincontent_area.height,
+                              [](const TouchData&, const BoxArea&) { std::cout << "Main content clicked!" << std::endl; },
+                              "Main Content Area", "center", true,
+                              Color(0.2f, 0.2f, 0.2f), Color(1.0f, 1.0f, 1.0f));
         
         layout_manager->register_layout(main_layout);
         layout_manager->register_box(test_box1);

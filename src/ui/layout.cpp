@@ -36,7 +36,15 @@ void Layout::add_row(const std::string& row_definition) {
     }
     
     rows.push_back(row);
+    custom_row_heights.push_back(-1.0f); // -1 means use automatic height
     is_calculated = false;
+}
+
+void Layout::set_custom_row_height(int row_index, float height) {
+    if (row_index >= 0 && row_index < static_cast<int>(custom_row_heights.size())) {
+        custom_row_heights[row_index] = height;
+        is_calculated = false;
+    }
 }
 
 void Layout::add_element_to_current_row(const std::string& type, void* element) {
@@ -57,19 +65,37 @@ void Layout::calculate_positions() {
         return;
     }
     
-    float row_height = area.height / static_cast<float>(rows.size());
+    // Calculate total used height by custom rows and remaining height for auto rows
+    float total_custom_height = 0.0f;
+    int auto_rows = 0;
+    
+    for (size_t i = 0; i < custom_row_heights.size(); ++i) {
+        if (custom_row_heights[i] > 0) {
+            total_custom_height += custom_row_heights[i];
+        } else {
+            auto_rows++;
+        }
+    }
+    
+    float remaining_height = area.height - total_custom_height;
+    float auto_row_height = auto_rows > 0 ? remaining_height / static_cast<float>(auto_rows) : 0.0f;
+    
+    float current_y = area.y;
     
     for (size_t row_idx = 0; row_idx < rows.size(); ++row_idx) {
         auto& row = rows[row_idx];
+        float row_height = (custom_row_heights[row_idx] > 0) ? custom_row_heights[row_idx] : auto_row_height;
         float col_width = area.width / static_cast<float>(row.size());
         
         for (size_t col_idx = 0; col_idx < row.size(); ++col_idx) {
             auto& elem = row[col_idx];
             elem.area.x = area.x + col_idx * col_width;
-            elem.area.y = area.y + row_idx * row_height;
+            elem.area.y = area.height - current_y - row_height;
             elem.area.width = col_width;
             elem.area.height = row_height;
         }
+        
+        current_y += row_height;
     }
     
     is_calculated = true;
