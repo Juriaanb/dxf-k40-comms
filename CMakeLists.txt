@@ -85,12 +85,21 @@ set_target_properties(wayland-protocols PROPERTIES LINKER_LANGUAGE C)
 set(SOURCES
     src/main.cpp
     src/base_window.cpp
-    src/wayland_manager.cpp
+    src/ui/touch_handler.cpp
+    src/ui/box.cpp
+    src/ui/ui_helpers.cpp
+    src/ui/layout.cpp
+    src/ui/layout_manager.cpp
 )
 
 set(HEADERS
     src/base_window.h
-    src/wayland_manager.h
+    src/window_data.h
+    src/ui/touch_handler.h
+    src/ui/box.h
+    src/ui/ui_helpers.h
+    src/ui/layout.h
+    src/ui/layout_manager.h
 )
 
 # Executable
@@ -115,6 +124,7 @@ target_link_libraries(${PROJECT_NAME}
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE 
     src
+    src/ui
     ${CMAKE_CURRENT_BINARY_DIR}
     ${WAYLAND_CLIENT_INCLUDE_DIRS}
     ${WAYLAND_EGL_INCLUDE_DIRS}

@@ -1,0 +1,105 @@
+#include "layout.h"
+#include <sstream>
+
+Layout::Layout() : area{0, 0, 1.0f, 1.0f}, is_calculated(false) {
+}
+
+Layout::Layout(float x, float y, float width, float height) 
+    : area{x, y, width, height}, is_calculated(false) {
+}
+
+void Layout::set_area(float x, float y, float width, float height) {
+    area = {x, y, width, height};
+    is_calculated = false;
+}
+
+void Layout::parse_row_string(const std::string& row_str, std::vector<std::string>& elements) {
+    std::istringstream iss(row_str);
+    std::string element;
+    elements.clear();
+    
+    while (iss >> element) {
+        elements.push_back(element);
+    }
+}
+
+void Layout::add_row(const std::string& row_definition) {
+    std::vector<std::string> element_names;
+    parse_row_string(row_definition, element_names);
+    
+    std::vector<LayoutElement> row;
+    for (const auto& name : element_names) {
+        LayoutElement elem;
+        elem.type = name;
+        elem.element_ptr = nullptr;
+        row.push_back(elem);
+    }
+    
+    rows.push_back(row);
+    is_calculated = false;
+}
+
+void Layout::add_element_to_current_row(const std::string& type, void* element) {
+    if (rows.empty()) return;
+    
+    auto& current_row = rows.back();
+    for (auto& elem : current_row) {
+        if (elem.element_ptr == nullptr && elem.type == type) {
+            elem.element_ptr = element;
+            break;
+        }
+    }
+}
+
+void Layout::calculate_positions() {
+    if (rows.empty()) {
+        is_calculated = true;
+        return;
+    }
+    
+    float row_height = area.height / static_cast<float>(rows.size());
+    
+    for (size_t row_idx = 0; row_idx < rows.size(); ++row_idx) {
+        auto& row = rows[row_idx];
+        float col_width = area.width / static_cast<float>(row.size());
+        
+        for (size_t col_idx = 0; col_idx < row.size(); ++col_idx) {
+            auto& elem = row[col_idx];
+            elem.area.x = area.x + col_idx * col_width;
+            elem.area.y = area.y + row_idx * row_height;
+            elem.area.width = col_width;
+            elem.area.height = row_height;
+        }
+    }
+    
+    is_calculated = true;
+}
+
+void Layout::recalculate() {
+    calculate_positions();
+}
+
+LayoutArea Layout::get_element_area(int row, int col) const {
+    if (row >= 0 && row < static_cast<int>(rows.size()) && 
+        col >= 0 && col < static_cast<int>(rows[row].size())) {
+        return rows[row][col].area;
+    }
+    return {0, 0, 0, 0};
+}
+
+void Layout::update_from_parent_ratio(float parent_x, float parent_y, 
+                                     float parent_width, float parent_height,
+                                     float ratio_x, float ratio_y, 
+                                     float ratio_width, float ratio_height) {
+    area.x = parent_x + ratio_x * parent_width;
+    area.y = parent_y + ratio_y * parent_height;
+    area.width = ratio_width * parent_width;
+    area.height = ratio_height * parent_height;
+    
+    is_calculated = false;
+    calculate_positions();
+}
+
+Layout* create_layout(float x, float y, float width, float height) {
+    return new Layout(x, y, width, height);
+}
