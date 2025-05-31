@@ -36,7 +36,12 @@ private:
     bool configured;
     bool running;
     
-    // Event handlers
+    bool init_wayland();
+    bool init_egl();
+    void cleanup();
+
+public:
+    // Event handlers (must be public for C callback access)
     static void registry_global(void* data, struct wl_registry* registry,
                                uint32_t name, const char* interface, uint32_t version);
     static void registry_global_remove(void* data, struct wl_registry* registry, uint32_t name);
@@ -57,11 +62,7 @@ private:
                               uint32_t time, uint32_t button, uint32_t state);
     static void pointer_axis(void* data, struct wl_pointer* pointer, uint32_t time,
                             uint32_t axis, wl_fixed_t value);
-    
-    bool init_wayland();
-    bool init_egl();
-    void cleanup();
-    
+
 public:
     WaylandManager();
     ~WaylandManager();
