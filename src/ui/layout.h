@@ -19,6 +19,7 @@ private:
     LayoutArea area;
     std::vector<std::vector<LayoutElement>> rows;
     std::vector<float> custom_row_heights;
+    std::vector<std::vector<float>> custom_col_widths;
     bool is_calculated;
     
     void parse_row_string(const std::string& row_str, std::vector<std::string>& elements);
@@ -31,6 +32,7 @@ public:
     void set_area(float x, float y, float width, float height);
     void add_row(const std::string& row_definition);
     void set_custom_row_height(int row_index, float height);
+    void set_custom_col_width(int row_index, int col_index, float width);
     
     void add_element_to_current_row(const std::string& type, void* element);
     

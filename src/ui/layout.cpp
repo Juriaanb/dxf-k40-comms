@@ -37,12 +37,25 @@ void Layout::add_row(const std::string& row_definition) {
     
     rows.push_back(row);
     custom_row_heights.push_back(-1.0f); // -1 means use automatic height
+    
+    // Initialize column widths for this row (-1 means automatic width)
+    std::vector<float> row_col_widths(row.size(), -1.0f);
+    custom_col_widths.push_back(row_col_widths);
+    
     is_calculated = false;
 }
 
 void Layout::set_custom_row_height(int row_index, float height) {
     if (row_index >= 0 && row_index < static_cast<int>(custom_row_heights.size())) {
         custom_row_heights[row_index] = height;
+        is_calculated = false;
+    }
+}
+
+void Layout::set_custom_col_width(int row_index, int col_index, float width) {
+    if (row_index >= 0 && row_index < static_cast<int>(custom_col_widths.size()) &&
+        col_index >= 0 && col_index < static_cast<int>(custom_col_widths[row_index].size())) {
+        custom_col_widths[row_index][col_index] = width;
         is_calculated = false;
     }
 }
@@ -85,14 +98,35 @@ void Layout::calculate_positions() {
     for (size_t row_idx = 0; row_idx < rows.size(); ++row_idx) {
         auto& row = rows[row_idx];
         float row_height = (custom_row_heights[row_idx] > 0) ? custom_row_heights[row_idx] : auto_row_height;
-        float col_width = area.width / static_cast<float>(row.size());
+        
+        // Calculate column widths for this row
+        float total_custom_width = 0.0f;
+        int auto_cols = 0;
+        
+        for (size_t col_idx = 0; col_idx < row.size(); ++col_idx) {
+            if (custom_col_widths[row_idx][col_idx] > 0) {
+                total_custom_width += custom_col_widths[row_idx][col_idx];
+            } else {
+                auto_cols++;
+            }
+        }
+        
+        float remaining_width = area.width - total_custom_width;
+        float auto_col_width = auto_cols > 0 ? remaining_width / static_cast<float>(auto_cols) : 0.0f;
+        
+        float current_x = area.x;
         
         for (size_t col_idx = 0; col_idx < row.size(); ++col_idx) {
             auto& elem = row[col_idx];
-            elem.area.x = area.x + col_idx * col_width;
+            float col_width = (custom_col_widths[row_idx][col_idx] > 0) ? 
+                             custom_col_widths[row_idx][col_idx] : auto_col_width;
+            
+            elem.area.x = current_x;
             elem.area.y = area.height - current_y - row_height;
             elem.area.width = col_width;
             elem.area.height = row_height;
+            
+            current_x += col_width;
         }
         
         current_y += row_height;

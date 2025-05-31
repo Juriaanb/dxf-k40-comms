@@ -28,6 +28,7 @@ int main_loop(const WindowData& data) {
         main_layout->add_row("titlebar closebtn");
         main_layout->add_row("maincontent");
         main_layout->set_custom_row_height(0, top_bar_height);
+        main_layout->set_custom_col_width(0, 1, 70.0f); // Close button 70px wide
         main_layout->recalculate();
         
         // Get areas for each element
