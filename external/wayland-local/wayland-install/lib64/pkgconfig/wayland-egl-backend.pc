@@ -1,0 +1,7 @@
+prefix=/home/juriaan/Documents/tooling/dxf-k40-comms/external/wayland-local/wayland/../wayland-install
+includedir=${prefix}/include
+
+Name: wayland-egl-backend
+Description: Backend wayland-egl interface
+Version: 3
+Cflags: -I${includedir}

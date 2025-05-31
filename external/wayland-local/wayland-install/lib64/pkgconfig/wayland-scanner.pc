@@ -1,0 +1,12 @@
+prefix=/home/juriaan/Documents/tooling/dxf-k40-comms/external/wayland-local/wayland/../wayland-install
+includedir=${prefix}/include
+
+datarootdir=${prefix}/share
+pkgdatadir=${pc_sysrootdir}${datarootdir}/wayland
+bindir=${prefix}/bin
+wayland_scanner=${bindir}/wayland-scanner
+
+Name: Wayland Scanner
+Description: Wayland scanner
+Version: 1.23.91
+Cflags: -I${includedir}

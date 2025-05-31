@@ -1,0 +1,14 @@
+prefix=/home/juriaan/Documents/tooling/dxf-k40-comms/external/wayland-local/wayland/../wayland-install
+includedir=${prefix}/include
+libdir=${prefix}/lib64
+
+datarootdir=${prefix}/share
+pkgdatadir=${pc_sysrootdir}${datarootdir}/wayland
+
+Name: Wayland Client
+Description: Wayland client side library
+Version: 1.23.91
+Requires.private: libffi
+Libs: -L${libdir} -lwayland-client -lm
+Libs.private: -pthread -lrt
+Cflags: -I${includedir}

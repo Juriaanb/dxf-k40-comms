@@ -1,0 +1,10 @@
+prefix=/home/juriaan/Documents/tooling/dxf-k40-comms/external/wayland-local/wayland/../wayland-install
+includedir=${prefix}/include
+libdir=${prefix}/lib64
+
+Name: wayland-egl
+Description: Frontend wayland-egl library
+Version: 18.1.0
+Requires: wayland-client
+Libs: -L${libdir} -lwayland-egl
+Cflags: -I${includedir}

@@ -1,0 +1,18 @@
+# Build directories
+build/
+logs/
+
+# Local dependencies (downloaded by setup)
+external/wayland-local/wayland/
+external/wayland-local/wayland-protocols/
+external/wayland-local/wayland-install/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

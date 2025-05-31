@@ -19,11 +19,6 @@ declare -a MENU_ITEMS=(
     "Build Project"
     "Run Application"
     "Monitor Logs"
-    "Clean Build"
-    "Generate GLAD"
-    "Check Dependencies"
-    "AI: Quick Build & Run (30s limit)"
-    "AI: Diagnostics (30s limit)"
     "Exit"
 )
 
@@ -31,12 +26,7 @@ declare -a MENU_SCRIPTS=(
     "setup.sh"
     "build.sh"
     "run.sh"
-    "monitor.sh"
-    "clean.sh"
-    "glad_gen.sh"
-    "check_deps.sh"
-    "ai_build_run.sh"
-    "ai_diagnostics.sh"
+    "manager_monitor"
     "exit"
 )
 
@@ -73,17 +63,9 @@ draw_menu() {
     
     for i in "${!MENU_ITEMS[@]}"; do
         if [ $i -eq $SELECTED ]; then
-            if [[ "${MENU_ITEMS[$i]}" == AI:* ]]; then
-                echo -e "  ${SELECTED}${AI_ITEM}${MENU_ITEMS[$i]}${NC}"
-            else
-                echo -e "  ${SELECTED}${MENU_ITEMS[$i]}${NC}"
-            fi
+            echo -e "  \033[7m${MENU_ITEMS[$i]}${NC}"
         else
-            if [[ "${MENU_ITEMS[$i]}" == AI:* ]]; then
-                echo -e "    ${AI_ITEM}${MENU_ITEMS[$i]}${NC}"
-            else
-                echo -e "    ${MENU_ITEMS[$i]}"
-            fi
+            echo -e "    ${MENU_ITEMS[$i]}"
         fi
     done
     
@@ -99,6 +81,51 @@ execute_script() {
     
     if [ "$script_name" = "exit" ]; then
         return 1
+    fi
+    
+    # Handle built-in monitor function
+    if [ "$script_name" = "manager_monitor" ]; then
+        restore_terminal
+        
+        echo "Executing: ${MENU_ITEMS[$SELECTED]}"
+        echo ""
+        
+        LOG_DIR="$SCRIPT_DIR/logs"
+        
+        if [ ! -d "$LOG_DIR" ]; then
+            echo "No logs directory found. Run the application first."
+            echo ""
+            echo "Press any key to return to menu..."
+            read -n 1 -s
+            setup_terminal
+            return 0
+        fi
+        
+        # Find latest log file
+        LATEST_LOG=$(find "$LOG_DIR" -name "run_*.log" -type f -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
+        
+        if [ -z "$LATEST_LOG" ]; then
+            echo "No log files found in $LOG_DIR"
+            echo ""
+            echo "Press any key to return to menu..."
+            read -n 1 -s
+            setup_terminal
+            return 0
+        fi
+        
+        echo "Monitoring: $LATEST_LOG"
+        echo "Press Ctrl+C to stop monitoring"
+        echo ""
+        
+        # Monitor the log file
+        tail -f "$LATEST_LOG"
+        
+        # This won't be reached unless tail is interrupted
+        echo ""
+        echo "Press any key to return to menu..."
+        read -n 1 -s
+        setup_terminal
+        return 0
     fi
     
     restore_terminal

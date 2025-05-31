@@ -1,41 +1,48 @@
-#include "window.h"
-#include "renderer.h"
+#include "base_window.h"
 #include <iostream>
+#include <GLES2/gl2.h>
 
-int main() {
-    Window window(1200, 800, "STEP Viewer");
+// Test program that the base window will host
+void test_program_init() {
+    std::cout << "Test program initialized" << std::endl;
+}
+
+void test_program_loop() {
+    // Simple test - draw a colored triangle in the center
+    static float rotation = 0.0f;
+    rotation += 0.01f;
     
-    if (!window.init()) {
-        std::cerr << "Failed to initialize window" << std::endl;
+    // This is a placeholder for actual program rendering
+    // Just change background color slightly to show it's running
+    float r = 0.2f + 0.1f * sin(rotation);
+    float g = 0.2f + 0.1f * cos(rotation);
+    float b = 0.2f;
+    
+    glClearColor(r, g, b, 1.0f);
+}
+
+void test_program_cleanup() {
+    std::cout << "Test program cleaned up" << std::endl;
+}
+
+int main(int argc, char* argv[]) {
+    // Create base window
+    BaseWindow window(800, 600, "STEP Viewer - Base Window");
+    
+    // Set up test program
+    window.set_program_init(test_program_init);
+    window.set_program_loop(test_program_loop);
+    window.set_program_cleanup(test_program_cleanup);
+    
+    // Initialize
+    if (!window.initialize()) {
+        std::cerr << "Failed to initialize base window" << std::endl;
         return -1;
     }
     
-    Renderer renderer(&window);
-    if (!renderer.init()) {
-        std::cerr << "Failed to initialize renderer" << std::endl;
-        return -1;
-    }
+    // Run
+    window.run();
     
-    std::cout << "Starting main loop..." << std::endl;
-    
-    while (!window.shouldClose()) {
-        window.pollEvents();
-        window.updateFPS();
-        
-        // Clear screen
-        renderer.clear(0.15f, 0.15f, 0.15f, 1.0f);
-        
-        // Draw custom window decorations
-        renderer.drawTitleBar();
-        renderer.drawCloseButton();
-        renderer.drawFPSCounter();
-        
-        // Test UI elements - remove these later
-        renderer.drawRect(0.1f, 0.1f, 0.8f, 0.8f, 0.3f, 0.3f, 0.3f, 0.8f); // Main area
-        renderer.drawBorder(0.1f, 0.1f, 0.8f, 0.8f, 0.002f, 0.6f, 0.6f, 0.6f, 1.0f);
-        
-        window.swapBuffers();
-    }
-    
+    std::cout << "Application ended" << std::endl;
     return 0;
 }
